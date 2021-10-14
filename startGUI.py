@@ -1,8 +1,8 @@
 #///////////////////////////////////////////////////////////////////////
 #Import libraries
 
-import Tkinter as tk
-import tkMessageBox
+import tkinter as tk
+import tkinter.messagebox as tkMessageBox
 import os
 import math
 import subprocess
@@ -24,7 +24,7 @@ def computeCFD():
 	if inputFormatCorrect:
 		cmd = "./Allrun"
 		os.system(cmd)
-	forceY=cfd.getForce()
+	forceY=cfd.getForce()[0]
 	print('ForceY: {} N'.format(forceY))
 	tkMessageBox.showinfo("Result","Propulsive force: {} N".format(forceY))
 	
@@ -94,6 +94,12 @@ def configureFiles():
 	except:
 		formatCorrect=False
 		tkMessageBox.showinfo("Incorrect input","Forward velocity must be a float number")
+		
+	try:
+		float(EntrySimulationTime.get())
+	except:
+		formatCorrect=False
+		tkMessageBox.showinfo("Incorrect input","Simulation end time must be a float number")
 	
 	if formatCorrect:
 		cmd = "./Allclean"
@@ -103,10 +109,10 @@ def configureFiles():
 		cfd.setMaxCourantNumber(float(EntryCourantNumber.get()))
 		cfd.setSwimmerRefinment(int(EntrySwimmerRefinment.get()))
 		cfd.setRotatingDomainRefinment(int(EntryInnerCylRefinment.get()))
-		cfd.setOuterCylinderSize(float(EntryOuterBoundaryDiameter.get()),float(EntryOuterBoundaryLength.get()))
-		cfd.setInnerCylinderSize(float(EntryRotatingBoundaryDiameter.get()),float(EntryRotatingBoundaryLength.get()))
+		cfd.setOuterCylinderSize(0.001*float(EntryOuterBoundaryDiameter.get()),0.001*float(EntryOuterBoundaryLength.get()))
+		cfd.setInnerCylinderSize(0.001*float(EntryRotatingBoundaryDiameter.get()),0.001*float(EntryRotatingBoundaryLength.get()))
 		cfd.setBlockMesh(max(float(EntryOuterBoundaryDiameter.get())*0.501/1000,float(EntryOuterBoundaryLength.get())*0.501/1000),float(EntryCellLength.get())/1000 )#blockmesh creates the initial mesh - setBlockMesh(blockSize,maxElementSize)
-	
+		cfd.setTimeMax(float(EntrySimulationTime.get()))
 	return formatCorrect
 	
 
@@ -144,15 +150,20 @@ EntryOuterBoundaryLength.insert(0,"22") #default value
 
 LabelRotatingBoundaryDiameter = tk.Label(GUI,text="Rotating boundary diameter [mm]: ")
 EntryRotatingBoundaryDiameter = tk.Entry(GUI)
-EntryRotatingBoundaryDiameter.insert(0,"8") #default value
+EntryRotatingBoundaryDiameter.insert(0,"5") #default value
 
 LabelRotatingBoundaryLength = tk.Label(GUI,text="Rotating boundary length [mm]: ")
 EntryRotatingBoundaryLength = tk.Entry(GUI)
-EntryRotatingBoundaryLength.insert(0,"15") #default value
+EntryRotatingBoundaryLength.insert(0,"12") #default value
 
 LabelForwardVelocity = tk.Label(GUI,text="Forward velocity [mm/s]: ")
 EntryForwardVelocity = tk.Entry(GUI)
 EntryForwardVelocity.insert(0,"0") #default value
+
+
+LabelSimulationTime = tk.Label(GUI,text="Simulation end time [s]: ")
+EntrySimulationTime = tk.Entry(GUI)
+EntrySimulationTime.insert(0,"0.5") #default value
 
 
 ButtonCompute = tk.Button(GUI, text ="Configure files and Compute", command = computeCFD)
@@ -164,6 +175,10 @@ ButtonSet = tk.Button(GUI, text ="Configure files", command = configureFiles)
 
 i=1 #index for row number
 k=1 #index for column number
+
+LabelSimulationTime.grid(row=i,column=k)
+EntrySimulationTime.grid(row=i,column=k+1)
+i=i+1
 
 LabelCellLength.grid(row=i,column=k)
 EntryCellLength.grid(row=i,column=k+1)

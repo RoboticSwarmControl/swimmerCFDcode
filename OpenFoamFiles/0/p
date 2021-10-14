@@ -23,12 +23,12 @@ boundaryField
     //- Set patchGroups for constraint patches
     #includeEtc "caseDicts/setConstraintTypes"
 
-    inlet
+    outlet
     {
         type            zeroGradient;
     }
 
-    outlet
+    inlet
     {
         type            fixedValue;
         value           uniform 0;

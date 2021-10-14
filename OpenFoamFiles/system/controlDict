@@ -20,13 +20,13 @@ startFrom       startTime;
 
 startTime       0;
 
-stopAt          endTime;
+endTime         0.01;
 
-endTime         0.5;
+endTime         0.01;
 
 deltaT          1e-3;
 writeControl    adjustableRunTime;
-writeInterval   0.001;
+writeInterval   0.01;
 
 ////- For testing with moveDynamicMesh
 //deltaT          0.01;
@@ -49,7 +49,7 @@ runTimeModifiable false;
 
 adjustTimeStep  yes;
 
-maxCo 5.0;
+maxCo 5;
 
 functions
 {

@@ -18,20 +18,20 @@ dimensions      [0 1 -1 0 0 0 0];
 
 internalField   uniform (0 0 0);
 
-swimmerVelocity 0.02;
+swimmerVelocity -0;
 
 boundaryField
 {
 //- Set patchGroups for constraint patches
 #includeEtc "caseDicts/setConstraintTypes"
 
-inlet
+outlet
 {
 type            fixedValue;
 value           uniform (0 $swimmerVelocity 0);
 }
 
-outlet
+inlet
 {
 type            zeroGradient;
 //type            inletOutlet;

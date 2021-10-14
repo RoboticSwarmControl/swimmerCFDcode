@@ -1,5 +1,6 @@
 import os
 import math
+import statistics
 
 def setRotationalSpeed(rotationalSpeed): #Function to set the rotational speed of the swimmer
 	file_path = os.path.dirname(os.path.realpath(__file__))
@@ -35,7 +36,7 @@ def setForwardVelcoity(forwardVelocity): #Function to set the forward velocity o
 	for line in textFile:
 		line=line.strip()
 		if 'swimmerVelocity' in line and not(changeMade):
-			line="swimmerVelocity {};".format(forwardVelocity)
+			line="swimmerVelocity -{};".format(forwardVelocity)
 			changeMade=True
 		newTextFile=newTextFile + line + "\n"
 	textFile.close()	
@@ -69,6 +70,29 @@ def setMaxCourantNumber(maxCo): #Function to set the max courant number of the s
 		print("New courant number set")
 	else :
 		print("ERROR: Could not set new courant number")
+		
+def setTimeMax(Tmax): #Function to set the max simulation time
+	file_path = os.path.dirname(os.path.realpath(__file__))
+	os.chdir(file_path)
+	os.chdir("OpenFoamFiles")
+	changeMade=False
+	print("Setting new simulation time ...")
+	textFile=open("system/controlDict","r")
+	newTextFile=""
+	for line in textFile:
+		line=line.strip()
+		if 'endTime' in line:
+			line="endTime         {};".format(Tmax)
+			changeMade=True
+		newTextFile=newTextFile + line + "\n"
+	textFile.close()	
+	textOut=open("system/controlDict","w")
+	textOut.write(newTextFile)
+	textOut.close()
+	if changeMade:
+		print("New simulation end time set")
+	else :
+		print("ERROR: Could not set new simulation end time")
 		
 def setSwimmerRefinment(refinmentLevel): #funtion to set the swimmer surface refinment level
 	file_path = os.path.dirname(os.path.realpath(__file__))
@@ -138,11 +162,19 @@ def getForce(): #funtion to calculate the force from the result data file
 	for line in textOut:
 		forceTorqueData.append(line.split())
 		
-	pressureForceY=float(forceTorqueData[len(forceTorqueData)-1][2])
-	viscousForceY=float(forceTorqueData[len(forceTorqueData)-1][5])
-	forceY=pressureForceY+viscousForceY
-	print("Force={} N".format(forceY))
-	return(forceY)
+	i=0
+	forceSteadyState=[] #list to store the force computed in the last time steps
+	for line in forceTorqueData:
+		if i>len(forceTorqueData)-10:
+			pressureForceY=float(forceTorqueData[i][2])
+			viscousForceY=float(forceTorqueData[i][5])
+			forceY=pressureForceY+viscousForceY
+			forceSteadyState.append(forceY)
+		i=i+1
+	averageForceY=statistics.mean(forceSteadyState)
+	stDevForceY=statistics.pstdev(forceSteadyState)
+	print("Force={} N".format(averageForceY))
+	return([averageForceY,stDevForceY])
 	
 def cleanCase(): #function to remove all temporary files generated bu OpenFoam
 	file_path = os.path.dirname(os.path.realpath(__file__))
@@ -170,9 +202,9 @@ def setOuterCylinderSize(diameter,length): #function to set the size of the oute
 				for ch in line:
 					if not(ch=="v"):
 						pointPositionString=pointPositionString+ch
-				pointPositionX=diameter*float(pointPositionString.split()[0])/(0.015*1000)
-				pointPositionY=length*float(pointPositionString.split()[1])/(0.022*1000)
-				pointPositionZ=diameter*float(pointPositionString.split()[2])/(0.015*1000)
+				pointPositionX=diameter*float(pointPositionString.split()[0])/(0.015)
+				pointPositionY=length*float(pointPositionString.split()[1])/(0.022)
+				pointPositionZ=diameter*float(pointPositionString.split()[2])/(0.015)
 				
 				line="v {} {} {}".format(pointPositionX,pointPositionY,pointPositionZ)
 						
@@ -207,9 +239,9 @@ def setInnerCylinderSize(diameter,length): #function to set the size of the inne
 				for ch in line:
 					if not(ch=="v"):
 						pointPositionString=pointPositionString+ch
-				pointPositionX=diameter*float(pointPositionString.split()[0])/(0.004*1000)
-				pointPositionY=length*float(pointPositionString.split()[1])/(0.008*1000)
-				pointPositionZ=diameter*float(pointPositionString.split()[2])/(0.004*1000)
+				pointPositionX=diameter*float(pointPositionString.split()[0])/(0.004)
+				pointPositionY=length*float(pointPositionString.split()[1])/(0.008)
+				pointPositionZ=diameter*float(pointPositionString.split()[2])/(0.004)
 				
 				line="v {} {} {}".format(pointPositionX,pointPositionY,pointPositionZ)
 						
