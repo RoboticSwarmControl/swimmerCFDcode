@@ -22,16 +22,16 @@ GUI = tk.Tk()
 def computeCFD():
 	inputFormatCorrect=configureFiles()
 	if inputFormatCorrect:
-		cmd = "./Allrun"
-		os.system(cmd)
+		averagedTimeWindow=1/(4*float(EntryRotationalSpeed.get()))
+		cfd.runCaseUntilStable(4,averagedTimeWindow,1,3)
 	forceY=cfd.getForce()[0]
-	print('ForceY: {} N'.format(forceY))
+	print('ForceY: {} N'.format(forceY[len(forceY)-1]))
 	tkMessageBox.showinfo("Result","Propulsive force: {} N".format(forceY))
 	
 def configureFiles():
 	file_path = os.path.dirname(os.path.realpath(__file__))
 	os.chdir(file_path)
-	os.chdir("OpenFoamFiles")
+	os.chdir("OpenFoamFiles") #TODO: fix bug when running for second time
 	
 	#check if all entries have the correct format
 	formatCorrect=True
@@ -94,12 +94,7 @@ def configureFiles():
 	except:
 		formatCorrect=False
 		tkMessageBox.showinfo("Incorrect input","Forward velocity must be a float number")
-		
-	try:
-		float(EntrySimulationTime.get())
-	except:
-		formatCorrect=False
-		tkMessageBox.showinfo("Incorrect input","Simulation end time must be a float number")
+
 	
 	if formatCorrect:
 		cmd = "./Allclean"
@@ -112,7 +107,7 @@ def configureFiles():
 		cfd.setOuterCylinderSize(0.001*float(EntryOuterBoundaryDiameter.get()),0.001*float(EntryOuterBoundaryLength.get()))
 		cfd.setInnerCylinderSize(0.001*float(EntryRotatingBoundaryDiameter.get()),0.001*float(EntryRotatingBoundaryLength.get()))
 		cfd.setBlockMesh(max(float(EntryOuterBoundaryDiameter.get())*0.501/1000,float(EntryOuterBoundaryLength.get())*0.501/1000),float(EntryCellLength.get())/1000 )#blockmesh creates the initial mesh - setBlockMesh(blockSize,maxElementSize)
-		cfd.setTimeMax(float(EntrySimulationTime.get()))
+		
 	return formatCorrect
 	
 
@@ -161,11 +156,6 @@ EntryForwardVelocity = tk.Entry(GUI)
 EntryForwardVelocity.insert(0,"0") #default value
 
 
-LabelSimulationTime = tk.Label(GUI,text="Simulation end time [s]: ")
-EntrySimulationTime = tk.Entry(GUI)
-EntrySimulationTime.insert(0,"0.5") #default value
-
-
 ButtonCompute = tk.Button(GUI, text ="Configure files and Compute", command = computeCFD)
 
 ButtonSet = tk.Button(GUI, text ="Configure files", command = configureFiles)
@@ -175,10 +165,6 @@ ButtonSet = tk.Button(GUI, text ="Configure files", command = configureFiles)
 
 i=1 #index for row number
 k=1 #index for column number
-
-LabelSimulationTime.grid(row=i,column=k)
-EntrySimulationTime.grid(row=i,column=k+1)
-i=i+1
 
 LabelCellLength.grid(row=i,column=k)
 EntryCellLength.grid(row=i,column=k+1)

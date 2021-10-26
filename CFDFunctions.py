@@ -1,6 +1,12 @@
 import os
 import math
 import statistics
+import time
+
+try:
+	import matplotlib.pyplot as plt
+except:
+	print("MatplotLib not installed, plots not avialable")
 
 def setRotationalSpeed(rotationalSpeed): #Function to set the rotational speed of the swimmer
 	file_path = os.path.dirname(os.path.realpath(__file__))
@@ -143,10 +149,61 @@ def setRotatingDomainRefinment(refinmentLevel): #function to set the rotating do
 		print("ERROR: Could not set new rotating domain refinment level")
 		
 def getForce(): #funtion to calculate the force from the result data file
+
 	file_path = os.path.dirname(os.path.realpath(__file__))
 	os.chdir(file_path)
 	os.chdir("OpenFoamFiles")
-	forceFile=open('postprocessing/forces/0/forces.dat')
+	forceFolders=os.walk('postProcessing/forces')
+
+	timeList=[]
+	forceList=[]
+	AvergedForceList=[]
+	StVList=[]
+
+	for folder in forceFolders:
+		#open file
+		try:
+			forceFile=open("{}/forces.dat".format(folder[0]))
+		except:
+			continue
+			
+		#remove parenthesis from file
+		textOut=[] #List that will contain all lines of the file
+		for line in forceFile:
+			lineOut=""
+			for ch in line:
+				if not(ch=="(" or ch==")"):
+					lineOut=lineOut+ch
+			textOut.append(lineOut)
+			
+		forceTorqueData=[] 
+		for line in textOut:
+			forceTorqueData.append(line.split()) #split data to get individual numbers. 2D data is stored in a list of lists
+		
+		#Calculate propulsive force: sum of viscous and pressure forces along Y axis
+		index=0
+		forceListLocal=[]
+		
+		for line in forceTorqueData:
+			if index>2:
+				pressureForceY=float(forceTorqueData[index][2])
+				viscousForceY=float(forceTorqueData[index][5])
+				forceY=pressureForceY+viscousForceY
+				forceList.append(forceY)
+				forceListLocal.append(forceY)
+				timeList.append(forceTorqueData[index][0])
+			index=index+1
+			
+		AvergedForceList.append(statistics.mean(forceListLocal))
+		StVList.append(statistics.pstdev(forceListLocal))	
+
+	return([AvergedForceList,StVList])
+	
+def getLastSimulationTime(): #funtion to get the last simulation time
+	file_path = os.path.dirname(os.path.realpath(__file__))
+	os.chdir(file_path)
+	os.chdir("OpenFoamFiles")
+	forceFile=open('postProcessing/forces/0/forces.dat')
 	processedForceFile=""
 	
 	#remove parenthesis from file
@@ -163,18 +220,15 @@ def getForce(): #funtion to calculate the force from the result data file
 		forceTorqueData.append(line.split())
 		
 	i=0
-	forceSteadyState=[] #list to store the force computed in the last time steps
+	simTime=[] #list to store the force computed in the last time steps
 	for line in forceTorqueData:
-		if i>len(forceTorqueData)-10:
-			pressureForceY=float(forceTorqueData[i][2])
-			viscousForceY=float(forceTorqueData[i][5])
-			forceY=pressureForceY+viscousForceY
-			forceSteadyState.append(forceY)
+		if i>2 and float(forceTorqueData[i][0])>float(forceTorqueData[len(forceTorqueData)-1][0])-0.1: #get last 0.1s of the computation
+			simTime.append(float(forceTorqueData[i][0]))
+			
 		i=i+1
-	averageForceY=statistics.mean(forceSteadyState)
-	stDevForceY=statistics.pstdev(forceSteadyState)
-	print("Force={} N".format(averageForceY))
-	return([averageForceY,stDevForceY])
+	lastSimTime=simTime[len(simTime)-1]
+	print("Last simulation time = {}".format(lastSimTime))
+	return(lastSimTime)
 	
 def cleanCase(): #function to remove all temporary files generated bu OpenFoam
 	file_path = os.path.dirname(os.path.realpath(__file__))
@@ -320,3 +374,119 @@ def runCase(): #funtion to start computing the case (Mesh+compute)
 	os.chdir("OpenFoamFiles")
 	cmd = "./Allrun"
 	os.system(cmd)
+	
+def runCaseUntilStable(nAverageSamples,averagedTimeWindow,maxVariationPercent,maxSimulationTime): #funtion to start computing the case (Mesh+compute)
+	plt.ion()
+	fig,axis=plt.subplots(2)
+	currentSimulationFinalTime=0;
+	
+	#compute the first nAverageSamples time slots
+	for iteration in range(nAverageSamples):
+		currentSimulationFinalTime=currentSimulationFinalTime+averagedTimeWindow
+		setTimeMax(currentSimulationFinalTime)
+	
+		#compute
+		if iteration==0:
+			cmd = "./Allrun"
+		else:
+			cmd = "pimpleFoam"
+		os.system(cmd)
+
+		axis[0].clear()
+		plotForce(axis[0],'All')
+		axis[1].clear()
+		plotForce(axis[1],'Last')
+		plt.show()
+		plt.pause(0.001)
+	
+	#check if solution is stable
+	Results=getForce()[0]
+	print(Results)
+	forceValuesToCheck=Results[len(Results)-nAverageSamples:len(Results)-1]
+	print(forceValuesToCheck)
+	solutionConverged=100*(max(forceValuesToCheck)-min(forceValuesToCheck))/(sum(forceValuesToCheck)/len(forceValuesToCheck))<maxVariationPercent
+
+
+	while not(solutionConverged):  #continue until convergence
+		
+			print("Solution not stable, continuing computation...")
+			iteration=iteration+1
+			currentSimulationFinalTime=currentSimulationFinalTime+averagedTimeWindow
+			setTimeMax(currentSimulationFinalTime)
+			cmd = "pimpleFoam"
+			os.system(cmd)
+			
+			#check if solution is stable
+			Results=getForce()[0]
+			forceValuesToCheck=Results[len(Results)-1-nAverageSamples:len(Results)-1]
+			solutionConverged=100*(max(forceValuesToCheck)-min(forceValuesToCheck))/(sum(forceValuesToCheck)/len(forceValuesToCheck))<maxVariationPercent
+
+			#plot force vs time
+			axis[0].clear()
+			plotForce(axis[0],'All')
+			axis[1].clear()
+			plotForce(axis[1],'Last')
+			plt.show()
+			plt.pause(0.001)
+			
+			if currentSimulationFinalTime>maxSimulationTime:
+				break
+
+	print("Stable, solution found")			
+	plt.close()
+	return(solutionConverged)
+
+def plotForce(axis,length): #funtion to plot the force vs time
+
+	file_path = os.path.dirname(os.path.realpath(__file__))
+	os.chdir(file_path)
+	os.chdir("OpenFoamFiles")
+	forceFolders=os.walk('postProcessing/forces')
+
+	timeList=[]
+	forceList=[]
+	AvergedForceList=[]
+	StVList=[]
+
+	for folder in forceFolders:
+		#open file
+		try:
+			forceFile=open("{}/forces.dat".format(folder[0]))
+		except:
+			continue
+			
+		#remove parenthesis from file
+		textOut=[] #List that will contain all lines of the file
+		for line in forceFile:
+			lineOut=""
+			for ch in line:
+				if not(ch=="(" or ch==")"):
+					lineOut=lineOut+ch
+			textOut.append(lineOut)
+			
+		forceTorqueData=[] 
+		for line in textOut:
+			forceTorqueData.append(line.split()) #split data to get individual numbers. 2D data is stored in a list of lists
+		
+		#Calculate propulsive force: sum of viscous and pressure forces along Y axis
+		index=0
+		forceListLocal=[]
+		timeListLocal=[]
+		
+		for line in forceTorqueData:
+			if index>2:
+				pressureForceY=float(forceTorqueData[index][2])
+				viscousForceY=float(forceTorqueData[index][5])
+				forceY=pressureForceY+viscousForceY
+				forceList.append(forceY)
+				forceListLocal.append(forceY)
+				timeList.append(forceTorqueData[index][0])
+				timeListLocal.append(forceTorqueData[index][0])
+			index=index+1
+			
+		AvergedForceList.append(statistics.mean(forceListLocal))
+		StVList.append(statistics.pstdev(forceListLocal))
+	if length=='All':
+		axis.plot(timeList,forceList)
+	if length=='Last':
+		axis.plot(timeListLocal,forceListLocal)		
