@@ -1,0 +1,2 @@
+Search interval begins at 306.25 Hz
+Search interval ends at 312.5 Hz

@@ -2,6 +2,9 @@ import os
 import math
 import statistics
 import time
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.collections import PolyCollection
 
 try:
 	import matplotlib.pyplot as plt
@@ -198,6 +201,57 @@ def getForce(): #funtion to calculate the force from the result data file
 		StVList.append(statistics.pstdev(forceListLocal))	
 
 	return([AvergedForceList,StVList])
+	
+def getTorque(): #funtion to calculate the force from the result data file
+
+	file_path = os.path.dirname(os.path.realpath(__file__))
+	os.chdir(file_path)
+	os.chdir("OpenFoamFiles")
+	forceFolders=os.walk('postProcessing/forces')
+
+	timeList=[]
+	torqueList=[]
+	AvergedTorqueList=[]
+	StVList=[]
+
+	for folder in forceFolders:
+		#open file
+		try:
+			forceFile=open("{}/forces.dat".format(folder[0]))
+		except:
+			continue
+			
+		#remove parenthesis from file
+		textOut=[] #List that will contain all lines of the file
+		for line in forceFile:
+			lineOut=""
+			for ch in line:
+				if not(ch=="(" or ch==")"):
+					lineOut=lineOut+ch
+			textOut.append(lineOut)
+			
+		forceTorqueData=[] 
+		for line in textOut:
+			forceTorqueData.append(line.split()) #split data to get individual numbers. 2D data is stored in a list of lists
+		
+		#Calculate propulsive force: sum of viscous and pressure forces along Y axis
+		index=0
+		torqueListLocal=[]
+		
+		for line in forceTorqueData:
+			if index>2:
+				pressureTorqueY=float(forceTorqueData[index][8])
+				viscousTorqueY=float(forceTorqueData[index][11])
+				torqueY=pressureTorqueY+viscousTorqueY
+				torqueList.append(torqueY)
+				torqueListLocal.append(torqueY)
+				timeList.append(forceTorqueData[index][0])
+			index=index+1
+			
+		AvergedTorqueList.append(statistics.mean(torqueListLocal))
+		StVList.append(statistics.pstdev(torqueListLocal))	
+
+	return([AvergedTorqueList,StVList])
 	
 def getLastSimulationTime(): #funtion to get the last simulation time
 	file_path = os.path.dirname(os.path.realpath(__file__))
@@ -490,3 +544,164 @@ def plotForce(axis,length): #funtion to plot the force vs time
 		axis.plot(timeList,forceList)
 	if length=='Last':
 		axis.plot(timeListLocal,forceListLocal)		
+
+def searchRotationalFrequency(targetTorque,maxSearchFrequency,tolHz): #funtion to search for the rotational frequency that generates a given torque on the swimmer
+	#obsolete
+	searchInterval=[0,maxSearchFrequency]
+	
+	#first make sure that the searched frequency is smaller than maxSearchFrequency
+	MaxSimulationTime=5 #[s]
+	averagedTimeWindow=1/(4*maxSearchFrequency)
+	if averagedTimeWindow<0.001:
+		averagedTimeWindow=0.001 #minimum time averge window of 1ms
+		
+	setRotationalSpeed(maxSearchFrequency)
+	cleanCase()
+	solutionConverged=runCaseUntilStable(4,averagedTimeWindow,1,MaxSimulationTime)
+	torqueResults=getTorque()[0]
+	torque=-torqueResults[len(torqueResults)-1]
+	
+	if torque<targetTorque:
+		print("Computed torque={} at {}".format(torque,maxSearchFrequency))
+		print("Target torque : {} N.m".format(targetTorque))
+		print("Error: cannot search for rotational frequency that produces the target torque. The maximim searched frequency produces a torque smaller than the target torque")
+	else:
+		#the solution is within the serach interval
+		#start dichotomy search
+		while searchInterval[1]-searchInterval[0]>tolHz:
+			newFrequency=(searchInterval[0]+searchInterval[1])/2
+			setRotationalSpeed(newFrequency)
+			cleanCase()
+			solutionConverged=runCaseUntilStable(4,averagedTimeWindow,1,MaxSimulationTime)
+			torqueResults=getTorque()[0]
+			torque=-torqueResults[len(torqueResults)-1]
+			
+			if torque<targetTorque:
+				searchInterval=[newFrequency,searchInterval[1]]
+			else:
+				searchInterval=[searchInterval[0],newFrequency]
+			
+			#write current search interval in text file	
+			line1="Search interval begins at {} Hz".format(searchInterval[0])
+			line2="Search interval ends at {} Hz".format(searchInterval[1])
+		
+			newTextFile=line1+"\n"+line2
+			textOut=open("searchFrequencyResult.txt","w")
+			textOut.write(newTextFile)
+			textOut.close()
+		
+	print("Found frequency that produces the target torque")
+	time.sleep(2)
+	return((searchInterval[0]+searchInterval[1])/2)
+
+def searchStepOutFrequency(magnetMoment,Voltage,R,L,k,tolHz): #funtion to search for the step out frequency of the swimmer
+	#k: [T/A] flux density produced by each coil at the center of the workspace for 1A
+	MaxSimulationTime=5 #[s]
+	startFrequency=100 #Hz
+	setRotationalSpeed(startFrequency)
+	
+	#create monitor file
+	line1="monitorType stepOutRL"
+	line2="RotationalFrequency[Hz],MagneticTorque[N.m],DragTorque[N.m]"
+	newTextFile=line1+"\n"+line2+"\n"
+	textOut=open("stepOutRL.monitor","w")
+	textOut.write(newTextFile)
+	textOut.close()
+		
+	#first search for a frequency above the step out frequency
+	rotationalFrequency=startFrequency
+	while True:
+		averagedTimeWindow=1/(4*rotationalFrequency)
+		if averagedTimeWindow<0.001:
+			averagedTimeWindow=0.001 #minimum time averge window of 1ms
+		
+		setRotationalSpeed(rotationalFrequency)
+		cleanCase()
+		solutionConverged=runCaseUntilStable(4,averagedTimeWindow,1,MaxSimulationTime)
+		torqueResults=getTorque()[0]
+		dragTorque=-torqueResults[len(torqueResults)-1]
+	
+		CoilImp=math.sqrt(R**2+(L*2*math.pi*rotationalFrequency)**2)
+		Current=Voltage/CoilImp
+		FluxDensity=2*Current*k
+		magneticTorque=FluxDensity*magnetMoment
+		
+		#read monitor file
+		monitorFile=open("stepOutRL.monitor","r")
+		textOut=""
+		for line in monitorFile:
+			textOut=textOut+line
+		
+		#add data in file
+		newLine="{},{},{}".format(rotationalFrequency,magneticTorque,dragTorque)
+		textOut=textOut+newLine+"\n"
+		
+		#write monitor file
+		oldText=open("stepOutRL.monitor","w")
+		oldText.write(textOut)
+		oldText.close()
+		
+		
+		if magneticTorque>dragTorque: # true is rotationalFrequency is below step out
+			rotationalFrequency=rotationalFrequency*2
+		else:
+			searchInterval=[rotationalFrequency/2 , rotationalFrequency]
+			break
+	
+	while searchInterval[1]-searchInterval[0]>tolHz:
+		rotationalFrequency=(searchInterval[0]+searchInterval[1])/2
+		setRotationalSpeed(rotationalFrequency)
+		averagedTimeWindow=1/(4*rotationalFrequency)
+		if averagedTimeWindow<0.001:
+			averagedTimeWindow=0.001 #minimum time averge window of 1ms
+		cleanCase()
+		solutionConverged=runCaseUntilStable(4,averagedTimeWindow,1,MaxSimulationTime)
+		torqueResults=getTorque()[0]
+		torque=-torqueResults[len(torqueResults)-1]
+		
+		CoilImp=math.sqrt(R**2+(L*2*math.pi*rotationalFrequency)**2)
+		Current=Voltage/CoilImp
+		FluxDensity=2*Current*k
+		magneticTorque=FluxDensity*magnetMoment
+		
+		
+		if torque<magneticTorque:
+			searchInterval=[rotationalFrequency,searchInterval[1]]
+		else:
+			searchInterval=[searchInterval[0],rotationalFrequency]
+		
+		#read monitor file
+		monitorFile=open("stepOutRL.monitor","r")
+		textOut=""
+		for line in monitorFile:
+			textOut=textOut+line
+		
+		#add data in file
+		newLine="{},{},{}".format(rotationalFrequency,magneticTorque,dragTorque)
+		textOut=textOut+newLine+"\n"
+		
+		#write monitor file
+		oldText=open("stepOutRL.monitor","w")
+		oldText.write(textOut)
+		oldText.close()
+	
+	stepOutFrequency=(searchInterval[0]+searchInterval[1])/2
+	print("Found step out frequency")
+	
+	#calculate the force at stepOutFrequency
+	rotationalFrequency=(searchInterval[0]+searchInterval[1])/2
+	setRotationalSpeed(rotationalFrequency)
+	averagedTimeWindow=1/(4*rotationalFrequency)
+	if averagedTimeWindow<0.001:
+		averagedTimeWindow=0.001 #minimum time averge window of 1ms
+	cleanCase()
+	solutionConverged=runCaseUntilStable(4,averagedTimeWindow,1,MaxSimulationTime)
+	results=getForce()[0]
+	propulsiveForce=results[len(results)-1]
+	
+	time.sleep(2)
+	return([rotationalFrequency,propulsiveForce])
+	
+
+
+
