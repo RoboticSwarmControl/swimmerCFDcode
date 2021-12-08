@@ -1,0 +1,5 @@
+next_iteration 1
+swimmerRefinement 2
+force 9.523333333333209e-09
+stDev 3.8229959851171923e-07
+computationTime 47.97585916519165

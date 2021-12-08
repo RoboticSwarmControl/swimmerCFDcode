@@ -1,0 +1,21 @@
+#!/bin/sh
+cd ${0%/*} || exit 1    # Run from this directory
+
+# Source tutorial run functions
+. $WM_PROJECT_DIR/bin/tools/RunFunctions
+
+# Mesh if necessary
+if ! cloneMesh ../../../../multiphase/interFoam/RAS/propeller .
+then
+    ./Allmesh
+fi
+
+runParallel $(getApplication)
+runApplication reconstructPar
+#pimpleFoam
+foamToVTK
+
+rm -R /mnt/d/VTK
+cp -R VTK /mnt/d
+
+#------------------------------------------------------------------------------
