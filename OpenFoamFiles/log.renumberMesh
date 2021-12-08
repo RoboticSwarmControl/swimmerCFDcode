@@ -1,0 +1,43 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  9
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+Build  : 9-b456138dc4bc
+Exec   : renumberMesh -noFields -overwrite
+Date   : Dec 08 2021
+Time   : 14:09:43
+Host   : "SwarmControl-13"
+PID    : 9542
+I/O    : uncollated
+Case   : /home/cougarnet.uh.edu/jleclerc/swimmerCFDcode/OpenFoamFiles
+nProcs : 1
+sigFpe : Enabling floating point exception trapping (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 10)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Create time
+
+Create mesh for time = 0
+
+Mesh size: 53035
+Before renumbering :
+    band           : 40064
+    profile        : 3.07907e+08
+
+Using default renumberMethod.
+
+Selecting renumberMethod CuthillMcKee
+
+
+After renumbering :
+    band           : 884
+    profile        : 3.0488e+07
+
+Writing mesh to "constant"
+
+End
+

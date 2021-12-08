@@ -555,8 +555,9 @@ def searchRotationalFrequency(targetTorque,maxSearchFrequency,tolHz): #funtion t
 	if averagedTimeWindow<0.001:
 		averagedTimeWindow=0.001 #minimum time averge window of 1ms
 		
-	setRotationalSpeed(maxSearchFrequency)
+	
 	cleanCase()
+	setRotationalSpeed(maxSearchFrequency)
 	solutionConverged=runCaseUntilStable(4,averagedTimeWindow,1,MaxSimulationTime)
 	torqueResults=getTorque()[0]
 	torque=-torqueResults[len(torqueResults)-1]
@@ -594,7 +595,7 @@ def searchRotationalFrequency(targetTorque,maxSearchFrequency,tolHz): #funtion t
 	time.sleep(2)
 	return((searchInterval[0]+searchInterval[1])/2)
 
-def searchStepOutFrequency(magnetMoment,Voltage,R,L,k,tolHz): #funtion to search for the step out frequency of the swimmer
+def searchStepOutFrequency(magnetMoment,Voltage,R,L,k,NbEM,tolHz): #funtion to search for the step out frequency of the swimmer
 	#k: [T/A] flux density produced by each coil at the center of the workspace for 1A
 	MaxSimulationTime=5 #[s]
 	startFrequency=100 #Hz
@@ -623,7 +624,7 @@ def searchStepOutFrequency(magnetMoment,Voltage,R,L,k,tolHz): #funtion to search
 	
 		CoilImp=math.sqrt(R**2+(L*2*math.pi*rotationalFrequency)**2)
 		Current=Voltage/CoilImp
-		FluxDensity=2*Current*k
+		FluxDensity=NbEM*Current*k
 		magneticTorque=FluxDensity*magnetMoment
 		
 		#read monitor file
@@ -701,7 +702,226 @@ def searchStepOutFrequency(magnetMoment,Voltage,R,L,k,tolHz): #funtion to search
 	
 	time.sleep(2)
 	return([rotationalFrequency,propulsiveForce])
+
+
+def searchStepOutFrequencyV2(magnetMoment,Voltage,R,L,k,NbEM,tolHz,startValue,InitialIntervalLength): #funtion to search for the step out frequency of the swimmer
+	#k: [T/A] flux density produced by each coil at the center of the workspace for 1A
+	MaxSimulationTime=5 #[s]
 	
+	searchInterval=[startValue-InitialIntervalLength/2, startValue+InitialIntervalLength/2]
 
+	
+	
+	#create monitor file
+	line1="monitorType stepOutRL"
+	line2="RotationalFrequency[Hz],MagneticTorque[N.m],DragTorque[N.m]"
+	newTextFile=line1+"\n"+line2+"\n"
+	textOut=open("stepOutRL.monitor","w")
+	textOut.write(newTextFile)
+	textOut.close()
+		
+	#first search check if the solution is within the search interval
+	
+	#calculate first frequency of the interval
+	rotationalFrequency=searchInterval[0]
+	
+	averagedTimeWindow=1/(4*rotationalFrequency)
+	if averagedTimeWindow<0.001:
+		averagedTimeWindow=0.001 #minimum time averge window of 1ms
+	
+	setRotationalSpeed(rotationalFrequency)
+	cleanCase()
+	solutionConverged=runCaseUntilStable(4,averagedTimeWindow,1,MaxSimulationTime)
+	torqueResults=getTorque()[0]
+	dragTorque0=-torqueResults[len(torqueResults)-1]
 
+	CoilImp=math.sqrt(R**2+(L*2*math.pi*rotationalFrequency)**2)
+	Current=Voltage/CoilImp
+	FluxDensity=NbEM*Current*k
+	magneticTorque0=FluxDensity*magnetMoment
+	
+	
+	#write result to file
+	#read monitor file
+	monitorFile=open("stepOutRL.monitor","r")
+	textOut=""
+	for line in monitorFile:
+		textOut=textOut+line
+	
+	#add data in file
+	newLine="{},{},{}".format(rotationalFrequency,magneticTorque0,dragTorque0)
+	textOut=textOut+newLine+"\n"
+	
+	#write monitor file
+	oldText=open("stepOutRL.monitor","w")
+	oldText.write(textOut)
+	oldText.close()
+	
+		
+	#calculate second frequency of the interval
+	rotationalFrequency=searchInterval[1]
+	
+	averagedTimeWindow=1/(4*rotationalFrequency)
+	if averagedTimeWindow<0.001:
+		averagedTimeWindow=0.001 #minimum time averge window of 1ms
+	
+	setRotationalSpeed(rotationalFrequency)
+	cleanCase()
+	solutionConverged=runCaseUntilStable(4,averagedTimeWindow,1,MaxSimulationTime)
+	torqueResults=getTorque()[0]
+	dragTorque1=-torqueResults[len(torqueResults)-1]
 
+	CoilImp=math.sqrt(R**2+(L*2*math.pi*rotationalFrequency)**2)
+	Current=Voltage/CoilImp
+	FluxDensity=NbEM*Current*k
+	magneticTorque1=FluxDensity*magnetMoment
+	
+		#write result to file
+	#read monitor file
+	monitorFile=open("stepOutRL.monitor","r")
+	textOut=""
+	for line in monitorFile:
+		textOut=textOut+line
+	
+	#add data in file
+	newLine="{},{},{}".format(rotationalFrequency,magneticTorque1,dragTorque1)
+	textOut=textOut+newLine+"\n"
+	
+	#write monitor file
+	oldText=open("stepOutRL.monitor","w")
+	oldText.write(textOut)
+	oldText.close()
+	
+	if magneticTorque0>dragTorque0 and magneticTorque0>dragTorque0: #step out frequency is inside the search interval
+		pass
+		
+	elif magneticTorque0<=dragTorque0:   #both tested frequencies are above step out frequency
+		#reduce the lowest frequency until a point below the step out frequency is found
+		
+		while magneticTorque0<=dragTorque0:
+			rotationalFrequency=searchInterval[0]-InitialIntervalLength
+			searchInterval=[rotationalFrequency,rotationalFrequency+InitialIntervalLength]
+		
+			averagedTimeWindow=1/(4*rotationalFrequency)
+			if averagedTimeWindow<0.001:
+				averagedTimeWindow=0.001 #minimum time averge window of 1ms
+			
+			setRotationalSpeed(rotationalFrequency)
+			cleanCase()
+			solutionConverged=runCaseUntilStable(4,averagedTimeWindow,1,MaxSimulationTime)
+			torqueResults=getTorque()[0]
+			dragTorque0=-torqueResults[len(torqueResults)-1]
+
+			CoilImp=math.sqrt(R**2+(L*2*math.pi*rotationalFrequency)**2)
+			Current=Voltage/CoilImp
+			FluxDensity=NbEM*Current*k
+			magneticTorque0=FluxDensity*magnetMoment
+	
+			#write result to file
+			#read monitor file
+			monitorFile=open("stepOutRL.monitor","r")
+			textOut=""
+			for line in monitorFile:
+				textOut=textOut+line
+			
+			#add data in file
+			newLine="{},{},{}".format(rotationalFrequency,magneticTorque0,dragTorque0)
+			textOut=textOut+newLine+"\n"
+			
+			#write monitor file
+			oldText=open("stepOutRL.monitor","w")
+			oldText.write(textOut)
+			oldText.close()
+		
+	else: #both tested frequencies are above step out frequency
+		#multiply the largest frequency by two until a point above the step out frequency is found
+	
+		while magneticTorque1>=dragTorque1:
+			rotationalFrequency=searchInterval[1]+InitialIntervalLength
+			searchInterval=[rotationalFrequency-InitialIntervalLength,rotationalFrequency]
+		
+			averagedTimeWindow=1/(4*rotationalFrequency)
+			if averagedTimeWindow<0.001:
+				averagedTimeWindow=0.001 #minimum time averge window of 1ms
+			
+			setRotationalSpeed(rotationalFrequency)
+			cleanCase()
+			solutionConverged=runCaseUntilStable(4,averagedTimeWindow,1,MaxSimulationTime)
+			torqueResults=getTorque()[0]
+			dragTorque1=-torqueResults[len(torqueResults)-1]
+
+			CoilImp=math.sqrt(R**2+(L*2*math.pi*rotationalFrequency)**2)
+			Current=Voltage/CoilImp
+			FluxDensity=NbEM*Current*k
+			magneticTorque1=FluxDensity*magnetMoment
+			
+			#write result to file
+			#read monitor file
+			monitorFile=open("stepOutRL.monitor","r")
+			textOut=""
+			for line in monitorFile:
+				textOut=textOut+line
+			
+			#add data in file
+			newLine="{},{},{}".format(rotationalFrequency,magneticTorque0,dragTorque0)
+			textOut=textOut+newLine+"\n"
+			
+			#write monitor file
+			oldText=open("stepOutRL.monitor","w")
+			oldText.write(textOut)
+			oldText.close()
+	
+	
+	while searchInterval[1]-searchInterval[0]>tolHz:
+		rotationalFrequency=(searchInterval[0]+searchInterval[1])/2
+		setRotationalSpeed(rotationalFrequency)
+		averagedTimeWindow=1/(4*rotationalFrequency)
+		if averagedTimeWindow<0.001:
+			averagedTimeWindow=0.001 #minimum time averge window of 1ms
+		cleanCase()
+		solutionConverged=runCaseUntilStable(4,averagedTimeWindow,1,MaxSimulationTime)
+		torqueResults=getTorque()[0]
+		torque=-torqueResults[len(torqueResults)-1]
+		
+		CoilImp=math.sqrt(R**2+(L*2*math.pi*rotationalFrequency)**2)
+		Current=Voltage/CoilImp
+		FluxDensity=2*Current*k
+		magneticTorque=FluxDensity*magnetMoment
+		
+		
+		if torque<magneticTorque:
+			searchInterval=[rotationalFrequency,searchInterval[1]]
+		else:
+			searchInterval=[searchInterval[0],rotationalFrequency]
+		
+		#read monitor file
+		monitorFile=open("stepOutRL.monitor","r")
+		textOut=""
+		for line in monitorFile:
+			textOut=textOut+line
+		
+		#add data in file
+		newLine="{},{},{}".format(rotationalFrequency,magneticTorque,torque)
+		textOut=textOut+newLine+"\n"
+		
+		#write monitor file
+		oldText=open("stepOutRL.monitor","w")
+		oldText.write(textOut)
+		oldText.close()
+	
+	stepOutFrequency=(searchInterval[0]+searchInterval[1])/2
+	print("Found step out frequency")
+	
+	#calculate the force at stepOutFrequency
+	rotationalFrequency=(searchInterval[0]+searchInterval[1])/2
+	setRotationalSpeed(rotationalFrequency)
+	averagedTimeWindow=1/(4*rotationalFrequency)
+	if averagedTimeWindow<0.001:
+		averagedTimeWindow=0.001 #minimum time averge window of 1ms
+	cleanCase()
+	solutionConverged=runCaseUntilStable(4,averagedTimeWindow,1,MaxSimulationTime)
+	results=getForce()[0]
+	propulsiveForce=results[len(results)-1]
+	
+	time.sleep(2)
+	return([rotationalFrequency,propulsiveForce])

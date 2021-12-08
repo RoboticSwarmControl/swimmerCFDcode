@@ -14,26 +14,67 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-3
+6
 (
-    walls
-    {
-        type            wall;
-        inGroups        List<word> 1(wall);
-        nFaces          8100;
-        startFace       267300;
-    }
     inlet
     {
         type            patch;
-        nFaces          2025;
-        startFace       275400;
+        nFaces          749;
+        startFace       154118;
     }
     outlet
     {
         type            patch;
-        nFaces          2025;
-        startFace       277425;
+        nFaces          749;
+        startFace       154867;
+    }
+    outerCylinder
+    {
+        type            wall;
+        inGroups        List<word> 1(wall);
+        nFaces          4790;
+        startFace       155616;
+    }
+    propellerStem
+    {
+        type            wall;
+        inGroups        List<word> 1(wall);
+        nFaces          2718;
+        startFace       160406;
+    }
+    AMI1
+    {
+        type            cyclicAMI;
+        inGroups        List<word> 
+2
+(
+cyclicAMI
+rotating
+)
+;
+        nFaces          3536;
+        startFace       163124;
+        matchTolerance  0.0001;
+        neighbourPatch  AMI2;
+        transformType   none;
+        method          faceAreaWeightAMI;
+    }
+    AMI2
+    {
+        type            cyclicAMI;
+        inGroups        List<word> 
+2
+(
+cyclicAMI
+rotating
+)
+;
+        nFaces          3536;
+        startFace       166660;
+        matchTolerance  0.0001;
+        neighbourPatch  AMI1;
+        transformType   none;
+        method          faceAreaWeightAMI;
     }
 )
 

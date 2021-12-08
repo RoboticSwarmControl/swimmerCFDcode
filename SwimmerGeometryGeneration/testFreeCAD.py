@@ -1,12 +1,7 @@
 
-import sys
-#FREECADPATH = '/usr/lib/freecad-python3/lib'
-#sys.path.append(FREECADPATH)
+import os
+import GeometryFunctions as GF
+cmd = "python2 GeometryGenerationFreeCADPython2.py"
+os.system(cmd)
 
-FREECADPATH = '/usr/lib/freecad/lib'
-
-sys.path.append(FREECADPATH)
-
-
-import FreeCAD
-import FreeCADGui
+GF.processObjFile()
