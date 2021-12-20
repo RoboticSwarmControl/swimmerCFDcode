@@ -59,9 +59,6 @@ Cut=1.51;
 #cut btwn 0 and ~1.5 and angle btwn 0 and 50(?)
 
 ExportBrepPath=u"E:/default.brep"
-# Space=input("Enter spacing between tip pitch and base pitch: ");
-# Spacing between pitches isn't a defined parameter atm
-# Tip cut angle could also be a variable with width if needed
 
 A=Diam; # convert from string
 Rad=(A/2) # total radius
@@ -72,104 +69,74 @@ Rad2=Rad-B; #cylinder radius (model radius - thread depth) = (1.25 - thread dept
 FreeCAD.open(u"E:/AutomatedOpt/V3/SwimmerModel7.FCStd")
 App.setActiveDocument("SwimmerModel7")
 App.ActiveDocument=App.getDocument("SwimmerModel7")
-#FreeCADGui.ActiveDocument=FreeCADGui.getDocument("SwimmerModel7")
 
 # Edit thread depth (cylinder radius)
 FreeCAD.getDocument("SwimmerModel7").getObject("Cylinder").Radius = Rad2
-
-# Changing angle of bottom pitch to align with top pitch (if we change vertical placement of threads, adjust this)
+App.activeDocument().recompute()
+# Changing ending point of the bottom pitch to align with the top pitch
 R=360*(1-4/Ptch1)
 FreeCAD.getDocument("SwimmerModel7").getObject("Sweep").Placement = App.Placement(App.Vector(0,0,0),App.Rotation(App.Vector(0,0,1),R))
 App.activeDocument().recompute()
-
 # Editing pitch
-
 FreeCAD.getDocument("SwimmerModel7").getObject("Helix").Pitch = Ptch1
 App.activeDocument().recompute()
 FreeCAD.getDocument("SwimmerModel7").getObject("Helix001").Pitch = Ptch2
 App.activeDocument().recompute()
 FreeCAD.getDocument("SwimmerModel7").getObject("Helix002").Pitch = Ptch2
 App.activeDocument().recompute()
-#
-#FreeCAD.getDocument("SwimmerModel7").getObject("Helix001").Pitch = 2
-
 # Thread thickness
-#----------
-
-
 T=(Thickness-0.2)
 App.ActiveDocument.Sketch001.setDatum(11,App.Units.Quantity(4.100000+(T/2)))
+App.activeDocument().recompute()
 App.ActiveDocument.Sketch001.setDatum(9,App.Units.Quantity(3.900000-(T/2)))
+App.activeDocument().recompute()
 App.ActiveDocument.Sketch.setDatum(11,App.Units.Quantity(0.100000+(T/2)))
+App.activeDocument().recompute()
 App.ActiveDocument.Sketch.setDatum(9,App.Units.Quantity(-1*(0.100000+(T/2))))
+App.activeDocument().recompute()
 App.ActiveDocument.Sketch002.setDatum(9,App.Units.Quantity(4.100000+(T/2)))
+App.activeDocument().recompute()
 App.ActiveDocument.Sketch002.setDatum(11,App.Units.Quantity(3.900000-(T/2)))
-#-------
+App.activeDocument().recompute()
+
 # Change total radius
-
 App.ActiveDocument.Sketch002.setDatum(8,App.Units.Quantity(-Rad))
+App.activeDocument().recompute()
 App.ActiveDocument.Sketch001.setDatum(10,App.Units.Quantity(Rad))
+App.activeDocument().recompute()
 App.ActiveDocument.Sketch.setDatum(10,App.Units.Quantity(Rad))
-
+App.activeDocument().recompute()
 # Changing tip curvature (fillet radius)
-
 __fillets__ = []
 __fillets__.append((1,Curve,Curve))
 FreeCAD.ActiveDocument.Fillet.Edges = __fillets__
 del __fillets__
-#FreeCADGui.ActiveDocument.Cylinder.Visibility = False
-
-
-# Changing length adds to the end length (should we also add space between tip and base pitches?)
-
+# Changing length adds to the end length
 L=6-Length
 FreeCAD.getDocument("SwimmerModel7").getObject("Cylinder").Placement = App.Placement(App.Vector(0,0,L),App.Rotation(App.Vector(0,0,1),0))
+App.activeDocument().recompute()
 FreeCAD.getDocument("SwimmerModel7").getObject("Cylinder").Height = Length
-#FreeCAD.getDocument("SwimmerModel7").getObject("Sketch003").Placement = App.Placement(App.Vector(0,0,L),App.Rotation(App.Vector(1,0,0),90))
+App.activeDocument().recompute()
 FreeCAD.getDocument("SwimmerModel7").getObject("Box").Placement = App.Placement(App.Vector(-2,-2,(-6+L)),App.Rotation(App.Vector(0,0,1),0))
-
-# Last trims (tip cut angle can also be made variable)
-
+FreeCAD.getDocument("SwimmerModel7").getObject("Box001").Placement = App.Placement(App.Vector(-2.5,-2.5,6),App.Rotation(App.Vector(0,0,1),0))
+App.activeDocument().recompute()
+# Last trims 
 Crve=Curve;
 X=Rad2-Crve
 Y=Length-Crve-0.01
 Z=Crve+0.2
 
-#App.ActiveDocument.Sketch003.setDatum(16,App.Units.Quantity(Rad+0.01))
-#App.ActiveDocument.Sketch003.setDatum(15,App.Units.Quantity(Crve))
-#App.ActiveDocument.Sketch003.setDatum(11,App.Units.Quantity(Z))
-#App.ActiveDocument.Sketch003.setDatum(13,App.Units.Quantity(X))
-#App.ActiveDocument.Sketch003.setDatum(17,App.Units.Quantity(X))
-#App.ActiveDocument.Sketch003.setDatum(14,App.Units.Quantity(Y))
-
-
 Web=0.05 # This is the amount of spacing at the tip for dulling the point.
-#App.ActiveDocument.Sketch003.setDatum(6,App.Units.Quantity('6.010000 mm')) # height + 0.01
-
-#----------
-
 App.ActiveDocument.Sketch003.setDatum(5,App.Units.Quantity(0.01+Web)) # web
+App.activeDocument().recompute()
 App.ActiveDocument.Sketch003.setDatum(7,App.Units.Quantity(6.01-Cut)) # angle via height of triangle base
-#----------
-
-# In order to add spacing btwn tip and base pitches... (Not using this atm)
-
-#S=float(Space)
-#FreeCAD.getDocument("SwimmerModel7").getObject("Cylinder").Placement = App.Placement(App.Vector(0,0,L),App.Rotation(App.Vector(0,0,1),0))
-#FreeCAD.getDocument("SwimmerModel7").getObject("Cylinder").Height = Length
-#App.getDocument("SwimmerModel7").Sweep.Placement=App.Placement(App.Vector(0,0,-S), App.Rotation(App.Vector(0,0,1),0), App.Vector(0,0,0))
+App.activeDocument().recompute()
 
 #Change bottom cut to have the same angle for any parameters (Radius and diameter of total swimmer being constant) 
 App.ActiveDocument.Sketch004.setDatum(5,App.Units.Quantity(-Rad2))
-
 App.activeDocument().recompute()
 
 # The original file is named 'SwimmerModel7')
-# To save changes to the file itself:  App.getDocument("BasicSwimmerAttempt").save()
-
-# Make sure this saves to a new name for each design, to avoid overwriting with 
-# a backup of any errors.
-#App.getDocument("SwimmerModel7").saveAs(u"C:/Users/Joclyn Ramos/Desktop/UHWork/2020 Fall/Milliswimmers/FreeCAD/SwimmerModel7.FCStd")
 
 # Save as an stl
 
@@ -180,8 +147,6 @@ App.activeDocument().recompute()
 #Mesh.export(__objs__,ExportSTLPath)
 #del __objs__
 
-
-
 #__objs__=[]
 #__objs__.append(FreeCAD.getDocument("SwimmerModel7").getObject("Cut001"))
 #import Mesh
@@ -189,10 +154,7 @@ App.activeDocument().recompute()
 #Mesh.export(__objs__,ExportSTLPath)
 #del __objs__
 
-
-
 #del __doc__, __mesh__, __part__, __shape__
-
 
 #import ObjectsFem
 #ObjectsFem.makeMeshNetgen(FreeCAD.ActiveDocument, 'FEMMeshNetgen')
@@ -204,15 +166,23 @@ App.activeDocument().recompute()
 #Mesh.Mesh(out_mesh)
 #FreeCAD.ActiveDocument.FEMMeshNetgen.ViewObject.hide()
 
-
-
-__objs__=[]
-__objs__.append(FreeCAD.getDocument("SwimmerModel7").getObject("Cut003"))
-import Part
-Part.export(__objs__,ExportBrepPath)
- 
-del __objs__
-
+#-----------------------------------------------------------------
+# Brep file is only exported if the swimmer volume in target range
+TargetVol=3.4159*Length*(Rad)**2 # max volume should be a cylinder
+target_object=App.ActiveDocument.getObjectsByLabel("Cut003")[0]
+Vol=target_object.Shape.Volume
+if (Vol<TargetVol):
+    print("Target volume met")
+    __objs__=[]
+    __objs__.append(FreeCAD.getDocument("SwimmerModel7").getObject("Cut003"))
+    import Part
+    Part.export(__objs__,ExportBrepPath)
+     
+    del __objs__
+else: 
+    print("Target volume not met")
+#------------------------------------------------------------------
+    
 #del __objs__
 #Gui.SendMsgToActiveView("SaveAs")
 #__objs__=[]
